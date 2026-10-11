@@ -281,3 +281,14 @@
 **Justification:** Frank asked for the crates.io registration and the tag on 2026-10-11. The Rust blog post of 2025-07-11 states the first release must be published manually before trusted publishing can be set up. Publishing claims the crate name and cannot be undone, only yanked.
 **Outcome:** applied
 **Ref:** (pending)
+
+## Q29 — release/purelymail-cli — deviation
+
+**Question:** Which token published 0.1.0, and what happens to it afterwards?
+**Options considered:** a throwaway token created in Frank's browser and revoked after one use (Q28) / Frank's own long-lived crates.io token, kept
+**Chosen:** Frank's own crates.io token, stored as `CARGO_REGISTRY_TOKEN` in `~/.zshenv` and `~/.profile`, both mode 600, outside the managed blocks. It stays. The trusted publisher for `soulmachine/purelymail`, workflow `release.yml`, was registered through the crates.io API with that token, so no browser login was needed.
+**Decided-by:** human
+**Justification:** crates.io's login runs through a GitHub popup the browser automation could not drive. Frank supplied the token on 2026-10-11 and asked for it to live in those two files.
+**Outcome:** applied
+**Ref:** (pending)
+**Supersedes:** Q28 — the token part; the publish-then-register-then-tag sequence stands.
