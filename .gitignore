@@ -1,0 +1,6 @@
+/target
+# Purelymail's spec is proprietary and is never committed; only src/schema.json is.
+/.spec/
+swagger-spec.js
+openapi.json
+*.tar.gz

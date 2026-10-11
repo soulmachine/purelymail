@@ -1,0 +1,91 @@
+# Pushing a v* tag releases that version to crates.io and to a GitHub release with prebuilt
+# binaries. crates.io authenticates by OIDC trusted publishing, configured on crates.io for this
+# repo and this workflow file, so no registry token exists anywhere.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # The whole release fails fast if the tag and Cargo.toml disagree about the version.
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: versions agree
+        run: |
+          set -eu
+          VERSION="${GITHUB_REF_NAME#v}"
+          grep -q "^version = \"$VERSION\"\$" Cargo.toml
+      - run: rustup update --no-self-update stable
+      - run: cargo test --workspace --locked
+
+  crates:
+    needs: test
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write # the OIDC exchange with crates.io; there is no token secret
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup update --no-self-update stable
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - name: publish, unless this version is already up
+        # A re-run after a partial release is idempotent; cargo publish fails on an existing version.
+        run: |
+          set -eu
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if curl -sf https://index.crates.io/pu/re/purelymail | grep -q "\"vers\":\"$version\""; then
+            echo "purelymail $version is already on crates.io; skipping"
+          else
+            cargo publish --locked
+          fi
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - { target: aarch64-apple-darwin, runner: macos-14 }
+          # Cross-compiled: the arm64 runner carries the x64 macOS SDK too.
+          - { target: x86_64-apple-darwin, runner: macos-14 }
+          - { target: x86_64-unknown-linux-gnu, runner: ubuntu-22.04 }
+          - { target: aarch64-unknown-linux-gnu, runner: ubuntu-22.04-arm }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup update --no-self-update stable
+      - run: rustup target add ${{ matrix.target }}
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+      - run: >
+          tar -czf purelymail-${GITHUB_REF_NAME}-${{ matrix.target }}.tar.gz
+          -C target/${{ matrix.target }}/release purelymail
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarball-${{ matrix.target }}
+          path: "*.tar.gz"
+
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: tarball-*
+          merge-multiple: true
+      - run: >
+          gh release create "$GITHUB_REF_NAME" artifacts/*.tar.gz
+          --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

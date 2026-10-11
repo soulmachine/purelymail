@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup update --no-self-update stable
+      - run: rustup component add rustfmt clippy
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: cargo build --locked
+
+  # src/schema.json is committed, so it can drift from Purelymail's live spec with nothing failing.
+  # This regenerates it from the live spec and fails on any difference. The generator itself
+  # fails on an operation it has no command name for, so a new endpoint cannot vanish silently.
+  schema-drift:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup update --no-self-update stable
+      - run: cargo run --locked -p gen
+      - name: committed schema matches the live spec
+        run: |
+          if git diff --quiet -- src/schema.json; then
+            echo "src/schema.json is current"
+          else
+            echo "::error::src/schema.json differs from Purelymail's live spec; run 'cargo run -p gen' and commit the result"
+            git diff --stat -- src/schema.json
+            exit 1
+          fi
