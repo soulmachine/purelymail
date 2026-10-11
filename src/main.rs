@@ -18,6 +18,8 @@ fn main() -> ExitCode {
     };
     match dispatch::run(&schema, &matches) {
         Ok(()) => ExitCode::SUCCESS,
+        // A reader that went away (`| head`) is not an error worth reporting.
+        Err(api::Error::Io(e)) if e.kind() == std::io::ErrorKind::BrokenPipe => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("error: {e}");
             ExitCode::from(e.exit_code())

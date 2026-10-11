@@ -496,39 +496,30 @@ fn positional_conflicts_with_its_flag_and_required_fields_are_checked() {
     );
 }
 
-/// A config file in its own temp dir, removed when the test ends.
-struct TempConfig(PathBuf);
-
-impl Drop for TempConfig {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(self.0.parent().unwrap());
-    }
-}
-
-fn config_file(contents: &str) -> TempConfig {
-    let dir = std::env::temp_dir().join(format!(
-        "purelymail-test-{}-{}",
-        std::process::id(),
-        contents.len()
-    ));
+/// A config file under target/tmp, so `cargo clean` removes it.
+fn config_file(name: &str, contents: &str) -> PathBuf {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("config.toml");
+    let path = dir.join(format!("{name}.toml"));
     std::fs::write(&path, contents).unwrap();
-    TempConfig(path)
+    path
 }
 
 #[test]
 fn token_precedence_is_flag_then_env_then_file() {
-    let cfg = config_file(
+    let path = config_file(
+        "precedence",
         "api_token = \"file-token-default\"\n\n[client-b]\napi_token = \"file-token-b\"\n",
     );
-    let file = cfg.0.to_str().unwrap();
+    let file = path.to_str().unwrap();
     let show = |env: &[(&str, &str)], args: &[&str]| -> Value {
         let mut argv = vec!["config", "show", "-o", "json"];
         argv.extend(args);
         let r = run(None, env, &argv);
         assert_eq!(r.code, 0, "{}", r.err);
-        assert!(!r.out.contains("token-"), "token leaked: {}", r.out);
+        for secret in ["flag-token", TOKEN, "file-token"] {
+            assert!(!r.out.contains(secret), "token leaked: {}", r.out);
+        }
         serde_json::from_str(&r.out).unwrap()
     };
     let v = show(&[("PURELYMAIL_CONFIG", file)], &["--token", "flag-token"]);
@@ -844,4 +835,85 @@ fn output_formats_render_list_results_as_rows() {
         r.out
     );
     m.assert();
+}
+
+#[test]
+fn config_file_errors_never_quote_the_file() {
+    let unquoted = config_file("unquoted", "api_token = pm-live-raw-secret\n");
+    let r = run(
+        None,
+        &[
+            ("PURELYMAIL_CONFIG", unquoted.to_str().unwrap()),
+            ("PURELYMAIL_API_TOKEN", ""),
+        ],
+        &["config", "show"],
+    );
+    assert_eq!(r.code, 1, "{}", r.err);
+    assert!(r.err.contains("invalid TOML at line 1"), "{}", r.err);
+    assert!(!r.err.contains("raw-secret"), "{}", r.err);
+
+    let wrong_key = config_file("wrong-key", "token = \"pm-live-other-secret\"\n");
+    let r = run(
+        None,
+        &[
+            ("PURELYMAIL_CONFIG", wrong_key.to_str().unwrap()),
+            ("PURELYMAIL_API_TOKEN", ""),
+        ],
+        &["config", "show"],
+    );
+    assert_eq!(r.code, 1, "{}", r.err);
+    assert!(r.err.contains("unknown key under \"token\""), "{}", r.err);
+    assert!(!r.err.contains("other-secret"), "{}", r.err);
+}
+
+#[test]
+fn body_values_may_start_with_a_hyphen() {
+    let body = dry_run_body(&[
+        "user",
+        "create",
+        "--user-name",
+        "a",
+        "--domain-name",
+        "b.c",
+        "--password",
+        "-x1",
+    ]);
+    assert_eq!(body["password"], "-x1");
+}
+
+#[test]
+fn list_operation_retries_502_then_succeeds() {
+    let mut server = mockito::Server::new();
+    let bad = mock(&mut server, "listDomains", 502, "bad gateway");
+    let ok = mock(
+        &mut server,
+        "listDomains",
+        200,
+        r#"{"type":"success","result":{"domains":[]}}"#,
+    );
+    let r = run(Some(&server), &[], &["domain", "list"]);
+    bad.assert();
+    ok.assert();
+    assert_eq!((r.code, r.out.as_str()), (0, "{\"domains\":[]}\n"));
+}
+
+#[test]
+fn list_operation_does_not_retry_500() {
+    let mut server = mockito::Server::new();
+    let m = mock(&mut server, "listDomains", 500, "boom");
+    let r = run(Some(&server), &[], &["domain", "list"]);
+    m.assert();
+    assert_eq!((r.code, r.err.as_str()), (5, "error: http 500: boom\n"));
+}
+
+#[test]
+fn unknown_envelope_type_exits_5() {
+    for body in [r#"{"type":"weird"}"#, r#"{"type":5}"#] {
+        let mut server = mockito::Server::new();
+        let m = mock(&mut server, "checkAccountCredit", 200, body);
+        let r = run(Some(&server), &[], &["account", "credit"]);
+        m.assert();
+        assert_eq!(r.code, 5, "{body}: {}", r.err);
+        assert!(r.err.contains("not a Purelymail API envelope"), "{}", r.err);
+    }
 }

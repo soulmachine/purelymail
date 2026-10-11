@@ -243,10 +243,19 @@ fn param_arg(p: &Param) -> Arg {
             .num_args(0..=1)
             .default_missing_value("true")
             .require_equals(true),
-        Kind::List => arg.value_name("value").action(ArgAction::Append),
-        Kind::Int => arg.value_name("n").value_parser(value_parser!(i64)),
-        Kind::Float => arg.value_name("x").value_parser(value_parser!(f64)),
-        Kind::String | Kind::Json => arg.value_name(p.name.clone()),
+        Kind::List => arg
+            .value_name("value")
+            .action(ArgAction::Append)
+            .allow_hyphen_values(true),
+        Kind::Int => arg
+            .value_name("n")
+            .value_parser(value_parser!(i64))
+            .allow_negative_numbers(true),
+        Kind::Float => arg
+            .value_name("x")
+            .value_parser(value_parser!(f64))
+            .allow_negative_numbers(true),
+        Kind::String | Kind::Json => arg.value_name(p.name.clone()).allow_hyphen_values(true),
     }
 }
 
@@ -615,7 +624,7 @@ fn list(schema: &Schema, g: &Globals, resource: Option<&String>) -> Result<(), E
             r.description.clone(),
         ]
     }));
-    print!("{}", output::aligned(&lines));
+    write!(io::stdout().lock(), "{}", output::aligned(&lines))?;
     eprintln!(
         "\n`purelymail list <resource>` shows its operations; `purelymail describe <resource> \
          <op>` what one takes."
@@ -658,7 +667,7 @@ fn list_ops(g: &Globals, res: &Resource) -> Result<(), Error> {
         }
         vec![format!("{} {}", res.name, o.name), operation, summary]
     }));
-    print!("{}", output::aligned(&lines));
+    write!(io::stdout().lock(), "{}", output::aligned(&lines))?;
     Ok(())
 }
 
@@ -824,7 +833,7 @@ fn config_command(schema: &Schema, g: &Globals, m: &ArgMatches) -> Result<(), Er
                 .into_iter()
                 .map(|(k, v)| vec![k.to_owned(), v])
                 .collect();
-            print!("{}", output::aligned(&lines));
+            write!(io::stdout().lock(), "{}", output::aligned(&lines))?;
             Ok(())
         }
         _ => {
@@ -851,8 +860,7 @@ fn config_command(schema: &Schema, g: &Globals, m: &ArgMatches) -> Result<(), Er
 }
 
 /// The records Purelymail needs on a custom domain, per
-/// https://purelymail.com/docs/domainDocs. Field order is alphabetical so the
-/// JSON matches what the table and csv renderers show.
+/// https://purelymail.com/docs/domainDocs.
 #[derive(Serialize)]
 struct DnsRecord {
     content: String,

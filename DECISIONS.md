@@ -251,3 +251,23 @@
 **Justification:** Q11 puts usage errors before the token lookup. This is the one stderr difference from the reference in the differential run of 2026-10-11.
 **Outcome:** applied
 **Ref:** (pending)
+
+## Q26 — impl/purelymail-cli — tradeoff
+
+**Question:** Replace the generator's hand-written ordered JSON type with serde_json's `preserve_order` feature?
+**Options considered:** enable `preserve_order` workspace-wide and delete about 100 lines / enable it for the generator only / keep the custom type
+**Chosen:** Keep the custom type.
+**Decided-by:** agent
+**Justification:** Review on 2026-10-11: the feature cannot be scoped to the generator, because `cargo test --workspace` unifies features, so the CLI would print API results in server order while `cargo install` builds print them alphabetically. Workspace-wide it changes the output order contract of Q4 and pulls indexmap into the shipped binary.
+**Outcome:** applied
+**Ref:** (pending)
+
+## Q27 — impl/purelymail-cli — gate-resolution
+
+**Question:** Hardening calls from the review that the brief did not settle?
+**Options considered:** follow redirects / none; report a broken pipe / exit quietly; uncapped backoff / capped
+**Chosen:** No redirects, because a redirect would carry the token to its target; a 3xx is exit 5. A broken stdout pipe exits 0 silently. Backoff caps at 16 s. A body that cannot be read is treated as empty so the status still decides the exit code. Config parse errors name a line number or key, never file content.
+**Decided-by:** agent
+**Justification:** Independent review on 2026-10-11 found the toml error text echoed the offending line, token included.
+**Outcome:** applied
+**Ref:** (pending)

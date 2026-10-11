@@ -4,6 +4,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
+rust-version = "1.88"
 license = "MIT"
 repository = "https://github.com/soulmachine/purelymail"
 
@@ -16,6 +17,7 @@ ureq = "3"
 name = "purelymail"
 version = "0.1.0"
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Command line interface to the Purelymail API, generated from its OpenAPI spec"

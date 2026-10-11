@@ -68,6 +68,8 @@ impl Client {
     ) -> Client {
         let agent = ureq::Agent::config_builder()
             .http_status_as_error(false)
+            // A redirect would carry the token to wherever it points.
+            .max_redirects(0)
             .timeout_global(Some(Duration::from_secs(60)))
             .build()
             .new_agent();
@@ -126,10 +128,7 @@ impl Client {
                         .headers()
                         .get("Retry-After")
                         .and_then(|v| v.to_str().ok()?.trim().parse::<u64>().ok());
-                    let text = resp
-                        .body_mut()
-                        .read_to_string()
-                        .map_err(|e| Error::Transport(format!("read response: {e}")))?;
+                    let text = resp.body_mut().read_to_string().unwrap_or_default();
                     (resp.status().as_u16(), retry_after, text)
                 }
                 Err(e) if attempt < retries => {
@@ -152,7 +151,7 @@ impl Client {
     fn wait(&self, attempt: u32, retry_after: Option<u64>, why: &str) {
         let wait = match retry_after {
             Some(secs) => Duration::from_secs(secs.min(30)),
-            None => Duration::from_millis(250 << attempt),
+            None => Duration::from_millis(250 << attempt.min(6)),
         };
         self.log(&format!(
             "{why}; retry {} of {} in {wait:?}",
