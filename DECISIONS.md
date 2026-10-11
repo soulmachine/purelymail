@@ -211,3 +211,43 @@
 **Justification:** Parallel owners would collide on the lockfile; the review separation is the point of delegating.
 **Outcome:** assumed
 **Ref:** (pending)
+
+## Q22 — impl/purelymail-cli — tradeoff
+
+**Question:** Keep the reference's undocumented `PURELYMAIL_API_URL` base URL override?
+**Options considered:** drop it and point tests at a mock through another seam / keep it undocumented as the reference does / keep it and document it
+**Chosen:** Keep it and document it in the README. It is an env var and not a flag, so a typo cannot send the token to another host.
+**Decided-by:** agent
+**Justification:** The behaviour tests need to aim the binary at a mock server, and a proxy user needs the same knob. A hidden knob that redirects the token is worse than a documented one.
+**Outcome:** applied
+**Ref:** (pending)
+
+## Q23 — impl/purelymail-cli — gate-resolution
+
+**Question:** Port the reference's extra commands that its README does not promise (`list --ops`, `tree <resource...>`, `config profiles`)?
+**Options considered:** port them / drop them
+**Chosen:** Dropped. The contract in Q4 is the reference README, not its full binary.
+**Decided-by:** agent
+**Justification:** Nothing in the README or the agent discovery flow uses them.
+**Outcome:** assumed
+**Ref:** (pending)
+
+## Q24 — impl/purelymail-cli — gate-resolution
+
+**Question:** Retry details the spec left open?
+**Options considered:** fixed delay / exponential backoff; dial errors only / any transport error for reads; honour `Retry-After` uncapped / capped
+**Chosen:** Backoff starts at 250 ms and doubles per attempt. An integer `Retry-After` on 429 is honoured, capped at 30 s. For list, get and check operations any transport error is retried, not only dial errors. Writes are never retried, including on transport errors. Request timeout is a fixed 60 s with no flag.
+**Decided-by:** agent
+**Justification:** Reads are safe to resend. Q11 forbids any retry of a write.
+**Outcome:** assumed
+**Ref:** (pending)
+
+## Q25 — impl/purelymail-cli — deviation
+
+**Question:** With no token and no `--yes`, which error does a delete report?
+**Options considered:** missing token first, as the reference does / `--yes` refusal first
+**Chosen:** The `--yes` refusal first. Both exit 1 and neither sends a request.
+**Decided-by:** agent
+**Justification:** Q11 puts usage errors before the token lookup. This is the one stderr difference from the reference in the differential run of 2026-10-11.
+**Outcome:** applied
+**Ref:** (pending)

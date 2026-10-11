@@ -43,7 +43,9 @@ purelymail --profile client-b domain list
 ```
 
 `--token` beats `PURELYMAIL_API_TOKEN`, which beats the config file. `PURELYMAIL_PROFILE`
-selects a profile. `PURELYMAIL_CONFIG` moves the file. To check what resolved, run:
+selects a profile. `PURELYMAIL_CONFIG` moves the file. `PURELYMAIL_API_URL` points the client
+at another base URL, for a proxy or a test server. It is not a flag on purpose, so that a typo
+cannot send the token elsewhere. To check what resolved, run:
 
 ```bash
 purelymail config show       # never prints the token, only its source and length

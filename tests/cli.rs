@@ -496,7 +496,16 @@ fn positional_conflicts_with_its_flag_and_required_fields_are_checked() {
     );
 }
 
-fn config_file(contents: &str) -> PathBuf {
+/// A config file in its own temp dir, removed when the test ends.
+struct TempConfig(PathBuf);
+
+impl Drop for TempConfig {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(self.0.parent().unwrap());
+    }
+}
+
+fn config_file(contents: &str) -> TempConfig {
     let dir = std::env::temp_dir().join(format!(
         "purelymail-test-{}-{}",
         std::process::id(),
@@ -505,15 +514,15 @@ fn config_file(contents: &str) -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.toml");
     std::fs::write(&path, contents).unwrap();
-    path
+    TempConfig(path)
 }
 
 #[test]
 fn token_precedence_is_flag_then_env_then_file() {
-    let path = config_file(
+    let cfg = config_file(
         "api_token = \"file-token-default\"\n\n[client-b]\napi_token = \"file-token-b\"\n",
     );
-    let file = path.to_str().unwrap();
+    let file = cfg.0.to_str().unwrap();
     let show = |env: &[(&str, &str)], args: &[&str]| -> Value {
         let mut argv = vec!["config", "show", "-o", "json"];
         argv.extend(args);
