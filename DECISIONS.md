@@ -301,4 +301,4 @@
 **Decided-by:** human
 **Justification:** Frank named the files on 2026-10-11. The sourcing line is the smallest change that makes his choice hold on Arch. Company hosts get nothing, per fleet-ssh.md.
 **Outcome:** applied
-**Ref:** macbook-provision Q217, ubuntu-provision Q27, omarchy-provision Q11
+**Ref:** macbook-provision Q217, ubuntu-provision Q27, omarchy-provision Q12
