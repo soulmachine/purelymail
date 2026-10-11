@@ -271,3 +271,13 @@
 **Justification:** Independent review on 2026-10-11 found the toml error text echoed the offending line, token included.
 **Outcome:** applied
 **Ref:** (pending)
+
+## Q28 — release/purelymail-cli — irreversible-action
+
+**Question:** How does the first release reach crates.io when trusted publishing cannot be configured before a crate exists?
+**Options considered:** Frank creates a token and runs `cargo login` by hand / an agent creates a short-lived, crate-scoped token in Frank's signed-in browser and publishes once / wait
+**Chosen:** A token named for this purpose, scoped to `publish-new` and `publish-update` on the crate `purelymail` with the shortest expiry crates.io offers, created in Frank's browser session, used for one `cargo publish --locked` of 0.1.0, then revoked. Trusted publishing is configured right after for `soulmachine/purelymail`, workflow `release.yml`, and the `v0.1.0` tag exercises it: the OIDC exchange runs and the publish step skips the already-published version.
+**Decided-by:** human
+**Justification:** Frank asked for the crates.io registration and the tag on 2026-10-11. The Rust blog post of 2025-07-11 states the first release must be published manually before trusted publishing can be set up. Publishing claims the crate name and cannot be undone, only yanked.
+**Outcome:** applied
+**Ref:** (pending)
