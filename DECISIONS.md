@@ -292,3 +292,13 @@
 **Outcome:** applied
 **Ref:** (pending)
 **Supersedes:** Q28 — the token part; the publish-then-register-then-tag sequence stands.
+
+## Q30 — fleet/purelymail-cli — deviation
+
+**Question:** How do the binary and the two tokens reach the other five personal hosts, and where do the tokens go on Linux?
+**Options considered:** `cargo install` per host / a release-tarball role in each provisioning repo / tokens in each host's `.env` for the dotenv role / free-standing exports by hand; on Linux `~/.profile` as Frank said / `~/.bashrc` above the guard as the house doc says
+**Chosen:** A `purelymail` role in macbook-provision, ubuntu-provision and omarchy-provision that installs the newest release tarball into `~/.local/bin`. Tokens as free-standing exports by hand: `~/.zshenv` on the four Macs, `~/.profile` on supermicro and mac-mini-2018-omarchy, all mode 600. On Omarchy, `~/.bash_profile` gained one line that sources `~/.profile`, because Arch's default never reads it and the tokens would have been dead there. Plain `ssh host 'cmd'` on the Linux hosts does not see them; `bash -lc` does, which is the fleet's remote-run form.
+**Decided-by:** human
+**Justification:** Frank named the files on 2026-10-11. The sourcing line is the smallest change that makes his choice hold on Arch. Company hosts get nothing, per fleet-ssh.md.
+**Outcome:** applied
+**Ref:** macbook-provision Q217, ubuntu-provision Q27, omarchy-provision Q11
