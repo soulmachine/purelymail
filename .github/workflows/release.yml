@@ -32,19 +32,24 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - run: rustup update --no-self-update stable
-      - uses: rust-lang/crates-io-auth-action@v1
-        id: auth
-      - name: publish, unless this version is already up
-        # A re-run after a partial release is idempotent; cargo publish fails on an existing version.
+      - name: is this version already on crates.io?
+        # A re-run after a partial release, or a first release published by hand, must not
+        # fail: cargo publish rejects an existing version, so the publish steps are skipped.
+        id: probe
         run: |
           set -eu
           version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
           if curl -sf https://index.crates.io/pu/re/purelymail | grep -q "\"vers\":\"$version\""; then
             echo "purelymail $version is already on crates.io; skipping"
-          else
-            cargo publish --locked
+            echo "published=true" >> "$GITHUB_OUTPUT"
           fi
+      - if: steps.probe.outputs.published != 'true'
+        run: rustup update --no-self-update stable
+      - if: steps.probe.outputs.published != 'true'
+        uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - if: steps.probe.outputs.published != 'true'
+        run: cargo publish --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
