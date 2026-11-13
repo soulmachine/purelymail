@@ -312,3 +312,13 @@
 **Justification:** Frank chose to raise the MSRV on 2026-11-12, across all his Rust repos.
 **Outcome:** applied
 **Ref:** (this commit)
+
+## Q32 — release/purelymail-cli — irreversible-action
+
+**Question:** Which version carries the MSRV raise to 1.100 (Q31), and what must change for the release workflow to run?
+**Options considered:** 0.1.1 / 0.2.0; for macOS: keep `macos-14` / `macos-15`
+**Chosen:** 0.2.0, released the 0.1.0 way: a signed `v0.2.0` tag runs `release.yml`, crates.io takes it through the trusted publisher (Q29), and the GitHub release carries the four tarballs the provisioning roles install (Q30). Its notes say that building from source needs Rust 1.100+. Both macOS build legs move from `macos-14` to `macos-15`, because GitHub no longer accepts the `macos-14` runner (EverTranscript CI, 2026-11-12). `macos-15` is arm64 as well, so the x86_64 leg still cross-compiles.
+**Decided-by:** human (release it); agent (version, runner)
+**Justification:** In 0.x, Cargo treats a minor bump as the breaking one, and a raised MSRV shuts out older compilers, so 0.2.0 rather than 0.1.1. Publishing cannot be undone, only yanked. Frank asked for the release on 2026-11-12. The fleet rollout is a separate step.
+**Outcome:** applied
+**Ref:** tag `v0.2.0`
