@@ -302,3 +302,13 @@
 **Justification:** Frank named the files on 2026-10-11. The sourcing line is the smallest change that makes his choice hold on Arch. Company hosts get nothing, per fleet-ssh.md.
 **Outcome:** applied
 **Ref:** macbook-provision Q217, ubuntu-provision Q27, omarchy-provision Q12
+
+## Q31 — interactive/rust-1.100 — deviation
+
+**Question:** When Rust 1.100.0 shipped, should the declared floor (`rust-version`, 1.88) move with it?
+**Options considered:** keep 1.88 and only build on 1.100 / raise `rust-version` to 1.100
+**Chosen:** `rust-version = "1.100"`, which `tools/gen` inherits through the workspace. No code change: clippy `-D warnings`, the tests and `cargo +1.100 check` pass. The raise reaches crates.io only with the next release. The fleet installs the release tarball (Q30), so no host compiles it.
+**Decided-by:** human
+**Justification:** Frank chose to raise the MSRV on 2026-11-12, across all his Rust repos.
+**Outcome:** applied
+**Ref:** (this commit)
